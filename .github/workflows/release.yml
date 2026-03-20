@@ -1,65 +1,20 @@
-name: Publish to the Maven Central Repository
+name: PoC - Command Injection Test
 
 on:
   release:
-    types: [ published ]
-  workflow_dispatch:
-    inputs:
-      dryRun:
-        description: "Dry-Run"
-        default: false
-        required: false
-        type: boolean
-      logLevel:
-        description: "Log-Level"
-        required: false
-        default: 'debug'
-        type: choice
-        options:
-          - info
-          - warn
-          - debug
-          - error
-          - fatal
+    types: [published]
 
 jobs:
-  publish:
+  poc-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{github.event.release.target_commitish}}
-          token: ${{ secrets.RELEASE_PERSONAL_ACCESS_TOKEN }}
+        uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'corretto'
-          java-version: '21'
-          server-id: central
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: MAVEN_GPG_PASSPHRASE
-          cache: 'maven'
-
-      - name: Update version
-        if: ${{ success() }}
-        run: ./mvnw --batch-mode --no-transfer-progress versions:set -DnewVersion=${{github.event.release.tag_name}} versions:commit
-
-      - name: Publish to the Maven Central Repository
-        if: ${{ success() }}
-        run: ./mvnw --batch-mode --no-transfer-progress -Dgib.disable=true -P central -DskipTests deploy
+      - name: Vulnerable Command - tag_name injected without sanitization
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Commit & Push changes
-        if: ${{ success() }}
-        uses: actions-js/push@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: 'Release ${{github.event.release.tag_name}}'
-          branch: ${{ github.event.release.target_commitish }}
+          FAKE_SECRET: "THIS_IS_A_SIMULATED_SECRET_VALUE"
+        run: |
+          echo "Executing: ./mvnw versions:set -DnewVersion=${{ github.event.release.tag_name }}"
+          echo "If tag_name contains shell metacharacters, arbitrary commands execute here"
+          echo "Secrets like FAKE_SECRET=$FAKE_SECRET would be exfiltrated"
