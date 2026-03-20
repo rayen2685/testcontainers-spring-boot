@@ -1,70 +1,24 @@
-name: Support Stream Branch Publish to the Maven Central Repository
+name: PoC - Workflow Dispatch Injection Test
 
 on:
-  push:
-    branches:
-      - 'support/**'
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to be released"
+        description: "Version to release"
         required: true
         type: string
-      branch:
-        description: "Branch to be released"
-        required: true
-        default: 'support/2.3.X'
-        type: choice
-        options:
-          - 'support/2.3.X'
-          - 'support/3.0.X'
-      java-version:
-        description: "Java version"
-        required: true
-        default: '21'
-        type: choice
-        options:
-          - '21'
-          - '17'
 
 jobs:
-  publish:
+  poc-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{github.event.inputs.branch}}
-          token: ${{ secrets.RELEASE_PERSONAL_ACCESS_TOKEN }}
+        uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'corretto'
-          java-version: ${{github.event.inputs.java-version}}
-          server-id: central
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: MAVEN_GPG_PASSPHRASE
-          cache: 'maven'
-
-      - name: Update version
-        if: ${{ success() }}
-        run: ./mvnw --batch-mode --no-transfer-progress versions:set -DnewVersion=${{github.event.inputs.version}} -Dgib.disable versions:commit
-
-      - name: Publish to the Maven Central Repository
-        if: ${{ success() }}
-        run: ./mvnw --batch-mode --no-transfer-progress -Dgib.disable=true -P central -DskipTests deploy
+      - name: Vulnerable Command
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Commit & Push changes
-        if: ${{ success() }}
-        uses: actions-js/push@v1.5
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: 'Release ${{github.event.inputs.version}}'
-          branch: ${{github.event.inputs.branch}}
+          FAKE_SECRET: "SIMULATED_GPG_KEY_12345"
+          FAKE_PASSWORD: "SIMULATED_OSSRH_PASS_67890"
+        run: |
+          echo "[VULNERABLE] Running: mvnw versions:set -DnewVersion=${{ github.event.inputs.version }}"
+          echo "[INFO] If version contains shell metacharacters, commands execute here"
